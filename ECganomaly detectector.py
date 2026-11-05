@@ -225,4 +225,28 @@ for epoch in range(num_epochs):
 
     avg_train_loss = total_loss / len(train_loader)
 
+ # Validation
+    model.eval()
+
+    with torch.no_grad():
+
+        val_reconstructed = model(
+            X_val_tensor.to(device)
+        )
+
+        val_loss = criterion(
+            val_reconstructed,
+            X_val_tensor.to(device)
+        ).item()
+
+    train_losses.append(avg_train_loss)
+    val_losses.append(val_loss)
+
+    print(
+        f"Epoch [{epoch+1}/{num_epochs}] "
+        f"Train Loss: {avg_train_loss:.6f} "
+        f"Val Loss: {val_loss:.6f}"
+    )
+
+
 
