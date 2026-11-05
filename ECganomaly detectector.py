@@ -179,3 +179,50 @@ class LSTMAutoencoder(nn.Module):
 
         return reconstructed
 
+
+model = LSTMAutoencoder().to(device)
+
+criterion = nn.MSELoss()
+
+optimizer = torch.optim.Adam(
+    model.parameters(),
+    lr=0.001
+)
+
+print(model)
+
+#Training
+
+num_epochs = 30
+
+train_losses = []
+val_losses = []
+
+for epoch in range(num_epochs):
+
+    model.train()
+
+    total_loss = 0
+
+    for (batch,) in train_loader:
+
+        batch = batch.to(device)
+
+        # Forward pass
+        reconstructed = model(batch)
+
+        # Reconstruction loss
+        loss = criterion(reconstructed, batch)
+
+        # Backpropagation
+        optimizer.zero_grad()
+
+        loss.backward()
+
+        optimizer.step()
+
+        total_loss += loss.item()
+
+    avg_train_loss = total_loss / len(train_loader)
+
+
