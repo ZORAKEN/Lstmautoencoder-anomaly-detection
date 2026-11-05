@@ -77,3 +77,105 @@ X_train_normal = (X_train_normal - mean) / std
 X_val_normal = (X_val_normal - mean) / std
 X_test = (X_test - mean) / std
 
+#pytorch tensors
+
+X_train_tensor = torch.tensor(
+    X_train_normal,
+    dtype=torch.float32
+).unsqueeze(-1)
+
+X_val_tensor = torch.tensor(
+    X_val_normal,
+    dtype=torch.float32
+).unsqueeze(-1)
+
+X_test_tensor = torch.tensor(
+    X_test,
+    dtype=torch.float32
+).unsqueeze(-1)
+
+y_test_tensor = torch.tensor(
+    (y_test != 1).astype(np.int64)
+)
+
+print("Input shape:", X_train_tensor.shape)
+
+train_loader = DataLoader(
+    TensorDataset(X_train_tensor),
+    batch_size=64,
+    shuffle=True
+)
+class LSTMAutoencoder(nn.Module):
+
+    def __init__(
+        self,
+        input_dim=1,
+        hidden_dim=64,
+        latent_dim=16,
+        seq_len=140
+    ):
+
+        super().__init__()
+
+        self.seq_len = seq_len
+
+        # Encoder
+        self.encoder = nn.LSTM(
+            input_size=input_dim,
+            hidden_size=hidden_dim,
+            num_layers=1,
+            batch_first=True
+        )
+
+        self.hidden_to_latent = nn.Linear(
+            hidden_dim,
+            latent_dim
+        )
+
+        # Latent to decoder input
+        self.latent_to_hidden = nn.Linear(
+            latent_dim,
+            hidden_dim
+        )
+
+        # Decoder
+        self.decoder = nn.LSTM(
+            input_size=hidden_dim,
+            hidden_size=hidden_dim,
+            num_layers=1,
+            batch_first=True
+        )
+
+        self.output_layer = nn.Linear(
+            hidden_dim,
+            input_dim
+        )
+
+    def forward(self, x):
+
+        batch_size = x.size(0)
+
+        # Encoder
+        _, (hidden, cell) = self.encoder(x)
+
+        # Last hidden state
+        hidden = hidden[-1]
+
+        # Latent representation
+        latent = self.hidden_to_latent(hidden)
+
+        # Expand latent representation
+        decoder_input = self.latent_to_hidden(latent)
+
+        decoder_input = decoder_input.unsqueeze(1).repeat(
+            1, self.seq_len, 1
+        )
+
+        # Decoder
+        decoded, _ = self.decoder(decoder_input)
+
+        # Reconstruct original ECG
+        reconstructed = self.output_layer(decoded)
+
+        return reconstructed
+
