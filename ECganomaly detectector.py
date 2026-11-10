@@ -248,5 +248,164 @@ for epoch in range(num_epochs):
         f"Val Loss: {val_loss:.6f}"
     )
 
+plt.figure(figsize=(10, 5))
+
+plt.plot(train_losses, label="Training Loss")
+plt.plot(val_losses, label="Validation Loss")
+
+plt.xlabel("Epoch")
+plt.ylabel("MSE Loss")
+plt.title("LSTM Autoencoder Training")
+
+plt.legend()
+plt.grid()
+plt.show()
+
+def reconstruction_error(data):
+
+    model.eval()
+
+    with torch.no_grad():
+
+        data = data.to(device)
+
+        reconstructed = model(data)
+
+        # Error for each ECG sample
+        error = torch.mean(
+            (data - reconstructed) ** 2,
+            dim=(1, 2)
+        )
+
+    return error.cpu().numpy()
+
+
+# Normal validation errors
+val_errors = reconstruction_error(X_val_tensor)
+
+# Test errors
+test_errors = reconstruction_error(X_test_tensor)
+
+
+# ANOMALY THRESHOLD
+# 95th percentile of normal validation errors
+
+threshold = np.percentile(val_errors, 95)
+
+print("Anomaly Threshold:", threshold)
+
+# 0 = Normal
+# 1 = Anomaly
+
+predictions = (test_errors > threshold).astype(int)
+
+actual = (y_test != 1).astype(int)
+
+print("\nClassification Report:")
+
+print(
+    classification_report(
+        actual,
+        predictions,
+        target_names=["Normal", "Anomaly"],
+        zero_division=0
+    )
+)
+
+
+#confusion
+cm = confusion_matrix(actual, predictions)
+
+print("Confusion Matrix:")
+print(cm)
+
+
+
+# ROC-AUC SCORE
+auc = roc_auc_score(actual, test_errors)
+print("ROC-AUC:", auc)
+
+
+#  VISUALIZE ECG SIGNALS
+normal_indices = np.where(actual == 0)[0]
+anomaly_indices = np.where(actual == 1)[0]
+
+plt.figure(figsize=(12, 5))
+
+if len(normal_indices) > 0:
+    idx = normal_indices[0]
+
+    plt.plot(
+        X_test[idx],
+        label="Normal ECG",
+        linewidth=2
+    )
+
+if len(anomaly_indices) > 0:
+    idx = anomaly_indices[0]
+
+    plt.plot(
+        X_test[idx],
+        label="Anomalous ECG",
+        linewidth=2
+    )
+
+plt.xlabel("Time Steps")
+plt.ylabel("Normalized ECG Amplitude")
+
+plt.title("Normal vs Anomalous ECG")
+
+plt.legend()
+plt.grid()
+plt.show()
+
+
+#  RECONSTRUCTION 
+
+
+model.eval()
+
+with torch.no_grad():
+
+    sample = X_test_tensor[:1].to(device)
+
+    reconstructed = model(sample)
+
+    original = sample.cpu().numpy()[0, :, 0]
+
+    reconstructed = (
+        reconstructed.cpu().numpy()[0, :, 0]
+    )
+
+plt.figure(figsize=(12, 5))
+
+plt.plot(original, label="Original ECG")
+plt.plot(reconstructed, label="Reconstructed ECG")
+
+plt.xlabel("Time Steps")
+plt.ylabel("Normalized Amplitude")
+
+plt.title("ECG Reconstruction")
+
+plt.legend()
+plt.grid()
+plt.show()
+
+
+#model
+
+torch.save(
+    {
+        "model_state_dict": model.state_dict(),
+        "threshold": threshold,
+        "mean": mean,
+        "std": std
+    },
+    "ecg_lstm_autoencoder.pth"
+)
+
+print("Model saved successfully!")
+
+
 
 
